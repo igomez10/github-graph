@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 from bs4 import BeautifulSoup
 import csv
-import html5lib
 from urllib.request import urlopen
 import lxml
 import requests
