@@ -9,7 +9,7 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/shurcooL/graphql"
+	"github.com/shurcooL/githubv4"
 	"golang.org/x/oauth2"
 )
 
@@ -20,12 +20,28 @@ func main() {
 	)
 	httpClient := oauth2.NewClient(context.Background(), src)
 
-	client := graphql.NewClient("https://api.github.com/graphql", httpClient)
+	client := githubv4.NewClient(httpClient)
 
 	var query struct {
 		Organization struct {
-			ID graphql.String
-		}
+			MembersWithRole struct {
+				Edges []struct {
+					Node struct {
+						ID            string `json:"id"`
+						Login         string `json:"login"`
+						Name          string `json:"name"`
+						Organizations struct {
+							Edges []struct {
+								Node struct {
+									Name string `json:"name"`
+									ID   string `json:"id"`
+								} `json:"node"`
+							} `json:"edges"`
+						} `json:"organizations" graphql:"organizations(first: 3)"`
+					} `json:"node"`
+				} `json:"edges"`
+			} `json:"membersWithRole" graphql:"membersWithRole(first: 3)"`
+		} `json:"organization" graphql:"organization(login: \"kubernetes\")"`
 	}
 
 	err := client.Query(context.Background(), &query, nil)
@@ -33,7 +49,9 @@ func main() {
 		fmt.Println("Error", err)
 	}
 
-	fmt.Printf("%+v", query)
+	prettyPrint, err := json.MarshalIndent(query, "", "    ")
+	checkError(err)
+	fmt.Print(string(prettyPrint))
 }
 
 // func old() {
@@ -63,11 +81,8 @@ func getContributorsInProject(client *http.Client, projectToVisit *project) gith
 
 	defer func() {
 		err := response.Body.Close()
-		if err != nil {
-			fmt.Println("Error closing response:", err)
-		}
+		checkError(err)
 	}()
-
 	body, err := ioutil.ReadAll(response.Body)
 	var currentProjectContributors githubContributorResponse
 	checkError(err)
